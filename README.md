@@ -2,7 +2,7 @@
 
 This 15-year dataset was used to analyze the drivers of group choice, changes in aggression and activity budgets, and variation in infant survivorship across fissions in geladas. 
 
-Behavioral data stem from individual focal observations that were divided into three periods: stable (4-2 years prior to fission), pre-fission (2-0 years prior to fission), and post-fission (0-2 years after fission to track changes in behavior. We also used pre-fission grooming relationships to determine whether stronger grooming partners were more likely to join the same units post-fission.
+Behavioral data stem from individual focal observations that were divided into three periods: stable (4-2 years prior to fission), pre-fission (2-0 years prior to fission), and post-fission (0-2 years after fission) to track changes in behavior. We also used pre-fission grooming relationships to determine whether stronger grooming partners were more likely to join the same units post-fission.
 
 Demographic data comprise infant survival records that were previously published in Tinsley Johnson et al. 2021.
 
