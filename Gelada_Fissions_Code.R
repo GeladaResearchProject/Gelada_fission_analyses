@@ -181,8 +181,6 @@ draws <- draws %>%
     Percent_Mediated = (Indirect_Effect / Total_Effect) * 100
   )
 
-quantile(draws$Indirect_Effect, probs=c(0.025,0.975))
-quantile(draws$Percent_Mediated, probs=c(0.025,0.975))
 quantile(draws$Percent_Mediated, probs=c(0.055,0.5,0.945))
 
 kinship.effects.plot<-ggplot(data=draws) + 
@@ -200,8 +198,6 @@ draws <- draws %>%
     Percent_Mediated = (Indirect_Effect / Total_Effect) * 100
   )
 
-quantile(draws$Indirect_Effect, probs=c(0.025,0.975))
-quantile(draws$Percent_Mediated, probs=c(0.025,0.975))
 quantile(draws$Percent_Mediated, probs=c(0.055,0.5,0.945))
 
 rank.effects.plot<-ggplot(data=draws) + 
@@ -284,7 +280,7 @@ bison.list.males[[1]]$Fissioned
 
 m2.males <- brm_multiple(f1 + f2 + set_rescor(FALSE), 
                          prior = c(prior(normal(0, 2), class="b", resp="groomvalue"),
-                                   prior(normal(0, 2), class="b", resp="Fissioned")), data = bison.list.males[1:5], cores = 4, 
+                                   prior(normal(0, 2), class="b", resp="Fissioned")), data = bison.list.males, cores = 4, 
                          control=list(adapt_delta=0.99))
 summary(m2.males, prob=0.89)
 
@@ -347,6 +343,8 @@ agg.plota+budget.plot + plot_annotation(tag_levels = "a")
 
 ## CONSTRUCT MODELS FOR EACH BEHAVIORAL STATE
 ## MODEL INDIVIDUAL PROPORTIONS
+state.data$Unit.Period<-paste(state.data$Unit_of_origin, state.data$Period, sep="_")
+
 activity.model.feed<-brm(data=state.data,
                          Total.Feed|trials(Total.Time) ~ Period + Season + (1|focalanimal_code),
                          chains=4, iter=4000, cores=2,
@@ -358,15 +356,15 @@ activity.model.feed<-brm(data=state.data,
 summary(activity.model.feed, prob=0.89)
 
 activity.model.move<-brm(data=state.data,
-                         Total.Move|trials(Total.Time) ~ Period + Season + (1|focalanimal_code),
+                         Prop.Move ~ Period + Season + (1|focalanimal_code),
                          chains=4, iter=4000, cores=2,
                          prior = c(
                            prior(normal(0, 2), "b"),
                            prior(normal(0, 5), "Intercept"),
                            prior(student_t(3, 0, 1), "sd")),
-                         family="binomial")
-pp_check(activity.model.move)
-summary(activity.model.move)
+                         family="zero_one_inflated_beta")
+conditional_effects(activity.model.move,"Period")
+conditional_effects(activity.model.move,"Season")
 
 activity.model.rest<-brm(data=state.data,
                          Total.Rest|trials(Total.Time) ~ Period + Season  + (1|focalanimal_code),
@@ -388,7 +386,7 @@ activity.model.social<-brm(data=state.data,
                              prior(student_t(3, 0, 1), "sd")),
                            family="binomial")
 pp_check(activity.model.social)
-summary(activity.model.social, prob=0.89)
+conditional_effects(activity.model.social,"Period")
 
 ## PART 4: INFANT SURVIVORSHIP
 ## GROUP SIZE COMPARISONS
@@ -413,6 +411,12 @@ plot3a<-ggplot(unit.sizes.rep, aes(x=N.Females, y=Fissioned, fill=Fissioned)) + 
   annotate("text", x=12.2, y=0.51, label="optimal range")  + geom_segment(aes(x = 8.8, y = 0.5, xend = 7.6, yend = 0.5), arrow = arrow(length = unit(0.3, "cm"))) +   coord_cartesian(clip = "off") + scale_x_continuous(breaks = seq(2,14,4))
 plot3a
 
+library(plm)
+
+unit.sizes.year<-unit.sizes %>%
+  group_by(Unit, Year) %>%
+  dplyr::summarise(N.Females=mean(N.Females))
+
 ## SURVIVORSHIP MODELS
 ## ADD NOMINAL VALUE TO INFANTS WHO DIED AT BIRTH
 inf.surv$End.Age[inf.surv$End.Age==0]<-0.0001
@@ -421,11 +425,11 @@ inf.surv$End.Age[inf.surv$End.Age==0]<-0.0001
 surv_object<-Surv(time=inf.surv$End.Age, event=inf.surv$Censored)
 plot(surv_object)
 
-survival.model <- rstanarm::stan_surv(surv_object ~  Fission + Sex + (1|Mom) + (1|Unit) + (1|Year), data = inf.surv, cores=2, basehaz = 'weibull')
+survival.model <- rstanarm::stan_surv(surv_object ~  Fission + (1|Mom) + (1|Unit) + (1|Year), data = inf.surv, cores=2, basehaz = 'weibull')
 summary(survival.model, digits=2, prob=c(0.055,0.945))
 
 ## VISUALIZE SURVIVAL CURVES
-infant.fissions <- dplyr::select(inf.surv, Fission, Sex, Mom, Unit, Year) %>%
+infant.fissions <- dplyr::select(inf.surv, Fission, Mom, Unit, Year) %>%
   distinct() %>%
   dplyr::mutate(id = 1:n(),
                 TimeCat2 = Fission) %>%
@@ -468,7 +472,12 @@ plot3b<-ggplot(infant.fissions,
 plot3b
 
 ## PART 5: INFANT MORTALITY CAUSES
-model.infanticides<-brm(data=inf.mortalities, Infanticide ~ Fissioned + (1|Unit), iter=4000, family="bernoulli")
+model.infanticides<-brm(data=inf.mortalities, Infanticide ~ Fissioned + (1|Unit), iter=4000, family="bernoulli", 
+                        prior = c(
+  prior(normal(0, 2), "b"),
+  prior(normal(0, 5), "Intercept"),
+  prior(student_t(3, 0, 1), "sd")), 
+  control=list(adapt_delta=0.99))
 summary(model.infanticides, prob=0.89)
 conditional_effects(model.infanticides)
 
@@ -477,7 +486,12 @@ sum(inf.mortalities$Infanticide[inf.mortalities$Fissioned=="Pre-fission"])/nrow(
 sum(inf.mortalities$Infanticide[inf.mortalities$Fissioned=="Post-fission"])/nrow(inf.mortalities[inf.mortalities$Fission=="Post-fission",])
 
 # Model 2: Maternal death
-model.mom<-brm(data=inf.mortalities, MaternalDeath ~ Fissioned + (1|Unit), control=list(adapt_delta=0.99), iter=4000, family="bernoulli")
+model.mom<-brm(data=inf.mortalities, MaternalDeath ~ Fissioned + (1|Unit), iter=4000, family="bernoulli",
+               prior = c(
+                 prior(normal(0, 2), "b"),
+                 prior(normal(0, 5), "Intercept"),
+                 prior(student_t(3, 0, 1), "sd")), 
+               control=list(adapt_delta=0.99))
 summary(model.mom)
 conditional_effects(model.mom, prob=0.89)
 
@@ -486,7 +500,12 @@ sum(inf.mortalities$MaternalDeath[inf.mortalities$Fissioned=="Pre-fission"])/nro
 sum(inf.mortalities$MaternalDeath[inf.mortalities$Fissioned=="Post-fission"])/nrow(inf.mortalities[inf.mortalities$Fission=="Post-fission",])
 
 # Model 3: Unknown deaths
-model.unk<-brm(data=inf.mortalities, Unknown ~ Fissioned + (1|Unit), iter=4000, family="bernoulli")
+model.unk<-brm(data=inf.mortalities, Unknown ~ Fissioned + (1|Unit), iter=4000, family="bernoulli",
+               prior = c(
+                 prior(normal(0, 2), "b"),
+                 prior(normal(0, 5), "Intercept"),
+                 prior(student_t(3, 0, 1), "sd")), 
+               control=list(adapt_delta=0.99))
 summary(model.unk, 0.89)
 conditional_effects(model.unk, prob=0.89)
 
@@ -494,3 +513,17 @@ sum(inf.mortalities$Unknown[inf.mortalities$Fissioned=="Stable"])/nrow(inf.morta
 sum(inf.mortalities$Unknown[inf.mortalities$Fissioned=="Pre-fission"])/nrow(inf.mortalities[inf.mortalities$Fission=="Pre-fission",])
 sum(inf.mortalities$Unknown[inf.mortalities$Fissioned=="Post-fission"])/nrow(inf.mortalities[inf.mortalities$Fission=="Post-fission",])
 
+## GET MODEL OUTPUTS
+sink("Gelada_Fission_Models.txt")
+print(summary(m2.females, prob=0.89), digits=3)
+print(summary(m2.males, prob=0.89), digits=3)
+print(summary(agg.model, prob=0.89), digits=3)
+print(summary(activity.model.feed, prob=0.89), digits=3)
+print(summary(activity.model.rest, prob=0.89), digits=3)
+print(summary(activity.model.social, prob=0.89), digits=3)
+print(summary(activity.model.move, prob=0.89), digits=3)
+print(summary(survival.model, prob=c(0.045, 0.945), digits=3))
+print(summary(model.infanticides, prob=0.89), digits=3)
+print(summary(model.mom, prob=0.89), digits=3)
+print(summary(model.unk, prob=0.89), digits=3)
+sink()
