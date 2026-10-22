@@ -26,4 +26,4 @@ Tinsley Johnson, E., Feder, J. A., Bergman, T. J., Lu, A., Snyder-Mackler, N., &
 ## Code/Software
 All analyses were completed in R v4.5.2 using a Bayesian framework, 'rstan' compiling, and a suite of corresponding packages (‘bisonR’, ‘rstanarm’, ‘brms’).
 
-“Gelada_Fissions_Code.R” provides the scripts to (i) construct Bayesian network models, (ii) build structural equation models examining the drivers of group co-membership, (iii) analyses focused on changes in aggression rates, (iv) analyses examining changes in activity budgets, (v) Bayesian infant survival models, and (vi) binomial models examining variation in the causes of infant mortality. 
+“Gelada_Fissions_Code.R” provides the scripts to construct (i) Bayesian network models, (ii) structural equation models examining the drivers of group co-membership, (iii) mixed effects models focused on changes in aggression rates, (iv) mixed effects models examining changes in activity budgets, (v) Bayesian infant survival models, and (vi) binomial models examining variation in the causes of infant mortality. 
